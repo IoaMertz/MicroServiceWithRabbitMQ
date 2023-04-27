@@ -1,0 +1,1 @@
+﻿Domain.Core conatins : Handles entitys needed for our bus , our commands, our Events (we are applying CQRS pattern with mediatR) 
