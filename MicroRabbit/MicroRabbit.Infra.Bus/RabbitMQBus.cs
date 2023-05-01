@@ -4,8 +4,10 @@ using MicroRabbit.Domain.Core.Commands;
 using MicroRabbit.Domain.Core.Events;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -59,12 +61,8 @@ namespace MicroRabbit.Infra.Bus
 
                     //publish the message
                     channel.BasicPublish("",eventName,null,body);
-
-
-
                 }
             }
-
         }
 
         // It needs the type of event and a handler that handles the specific type of the event
@@ -105,9 +103,97 @@ namespace MicroRabbit.Infra.Bus
 
             StartBasicConsume<T>();
             
+        }
 
+        private void StartBasicConsume<T>() where T : Event
+        {
+            var factory = new ConnectionFactory() 
+            {
+                HostName ="localhost",
+                //asynchronous consumer ??
+                DispatchConsumersAsync = true,
+            };
+
+            var connection = factory.CreateConnection();
+            var channel = connection.CreateModel();
+
+            // in the publish method we make the name of the event similar to the type
+            var eventName = typeof(T).Name;
+
+            channel.QueueDeclare(eventName, false, false, false, null);
+
+            var consumer = new AsyncEventingBasicConsumer(channel);
+
+            //We give a delegate(we ll make it ) that ll help as with the events.
+            //as soon as a message comes in to our queue this method will be called 
+            //and use the correct handler
+            consumer.Received += Consumer_Recieved;
+
+            // this consumes all the available messages ???
+            // and here is where the delegate methos the consumer has ic called ???
+            channel.BasicConsume(eventName, true, consumer);
         }
 
 
+        // When we see an event this method will call the correct handler
+        private async Task Consumer_Recieved(object sender, BasicDeliverEventArgs e)
+        {
+            // This comes from the e
+            var eventName = e.RoutingKey;
+            // We do the opossite procedure from when we publish the event. From bytes we get a string 
+            var message = Encoding.UTF8.GetString(e.Body);
+
+            try
+            {
+                // The ProccesEvent will know which handler is subscribed to this type of event.
+                // And ll do all the work in the background
+                await ProccesEvent(eventName , message).ConfigureAwait(false); //ConfigureAwait ????? something with multithreading
+            }
+            catch(Exception ex)
+            {
+
+            }
+        }
+        // this is where we look throw the dictionary of handlers 
+        // The ProccesEvent will know which handler is subscribed to this type of event.
+        // And ll do all the work in the background
+        private async Task ProccesEvent(string eventName, string message)
+        {
+            if (_handlers.ContainsKey(eventName))
+            {
+                var subscriptions = _handlers[eventName];
+                foreach (var subscription in subscriptions)
+                {
+                    // Generics just like using new to create an instance.
+                    var handler = Activator.CreateInstance(subscription);
+
+                    //why we need this?. If Handler is null continue looking
+                    if (handler == null) continue;
+
+                    // Now that we have the Handler. We look in the variable List that hold the event types 
+                    //for the event Type based on the eventName
+                    //(remember : SingleOrDefault throws an error in more that one is in the collection)
+                    var eventType = _eventTypes.SingleOrDefault(t => t.Name == eventName);
+
+                    //this make an object type (eventType), with the message. Maybe 
+                    var @event = JsonConvert.DeserializeObject(message, eventType);
+
+                    // All our event handlers implement
+                    //typeof(IEventHandler<>) return a Type. <> indicates and open generic type.
+                    //The MakeGenericType method takes one or more Type objects as parameters
+                    //and returns a new Type object that represents a closed constructed type based on the original open generic type.
+                    //In this case, the eventType parameter is used to create a closed constructed type of IEventHandler<T>,
+                    //where T is the type represented by eventType.
+                    var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
+
+                    //this uses generic to take the method named Handle
+                    //(Remember we have make the signature for this method in IEventHandler Interface we made so it has to be there)
+                    //from the specific handler and use it passing the event object
+                    //We ll create different event handlers for different use cases in our microservices.
+                    //They will be inviked from our service buss over here
+                    await (Task)concreteType.GetMethod("Handle").Invoke(handler, new object[] { @event });
+                }
+            }
+        }
     }
 }
