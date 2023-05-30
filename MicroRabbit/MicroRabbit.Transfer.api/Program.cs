@@ -1,5 +1,5 @@
 
-namespace MicroRabbit.Transfer.api
+namespace MicroRabbit.Transfer.Api
 {
     public class Program
     {
