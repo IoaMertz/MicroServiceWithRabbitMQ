@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
@@ -15,6 +15,8 @@
     <ProjectReference Include="..\MicroRabbit.Banking.Data\MicroRabbit.Banking.Data.csproj" />
     <ProjectReference Include="..\MicroRabbit.Domain.Core\MicroRabbit.Domain.Core.csproj" />
     <ProjectReference Include="..\MicroRabbit.Infra.Bus\MicroRabbit.Infra.Bus.csproj" />
+    <ProjectReference Include="..\MicroRabbit.Transfer.Application\MicroRabbit.Transfer.Application.csproj" />
+    <ProjectReference Include="..\MicroRabbit.Transfer.Data\MicroRabbit.Transfer.Data.csproj" />
   </ItemGroup>
 
 </Project>

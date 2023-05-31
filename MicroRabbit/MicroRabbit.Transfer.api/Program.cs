@@ -1,3 +1,4 @@
+using MicroRabbit.Banking.Data.Context;
 using MicroRabbit.Infra.IoC;
 using MicroRabbit.Transfer.Data.Context;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +24,15 @@ namespace MicroRabbit.Transfer.Api
                     );
             }
            );
-            //builder.Services.RegisterServices();
+            builder.Services.AddDbContext<BankingDbContext>(options =>
+            {
+                options.UseSqlServer(
+                    builder.Configuration.GetConnectionString("BankingDbConnection")
+                    );
+            }
+         );
+            var kati = builder.Configuration;
+            builder.Services.RegisterServices();
 
             builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 

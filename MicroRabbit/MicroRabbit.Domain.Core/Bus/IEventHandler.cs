@@ -8,14 +8,14 @@ using System.Threading.Tasks;
 namespace MicroRabbit.Domain.Core.Bus
 {
     // in keyword  --> covariance,  it must handle(take in) any generic event, 
-    public interface IEventHandler<in TEvent> :IEventHandler 
+    public interface IEventHandler<in TEvent> :IEventHandler1
         where TEvent :Event
     {
         Task Handle(TEvent @event);
 
     }
 
-    public interface IEventHandler
+    public interface IEventHandler1
     {
 
     }
