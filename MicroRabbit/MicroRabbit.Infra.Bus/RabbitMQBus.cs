@@ -2,6 +2,7 @@
 using MicroRabbit.Domain.Core.Bus;
 using MicroRabbit.Domain.Core.Commands;
 using MicroRabbit.Domain.Core.Events;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -22,6 +23,10 @@ namespace MicroRabbit.Infra.Bus
         // this Dict ll hold all the handlers for the different events, it ll hold the Types of handlers
         // The Dictionary and List are like a subscription that knows which subscription is tied to which handlers and event
         private readonly Dictionary<string,List<Type>> _handlers;
+
+        
+
+
 
         // list of event types
         private readonly List<Type> _eventTypes;
@@ -164,7 +169,7 @@ namespace MicroRabbit.Infra.Bus
                 var subscriptions = _handlers[eventName];
                 foreach (var subscription in subscriptions)
                 {
-                    // Generics just like using new to create an instance.
+                    // Generics just like using new to create an instance. Requires a parametereles ctor 
                     var handler = Activator.CreateInstance(subscription);
 
                     //why we need this?. If Handler is null continue looking

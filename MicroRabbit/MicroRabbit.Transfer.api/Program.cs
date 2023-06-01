@@ -1,6 +1,9 @@
 using MicroRabbit.Banking.Data.Context;
+using MicroRabbit.Domain.Core.Bus;
 using MicroRabbit.Infra.IoC;
 using MicroRabbit.Transfer.Data.Context;
+using MicroRabbit.Transfer.Domain.EventHandlers;
+using MicroRabbit.Transfer.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace MicroRabbit.Transfer.Api
@@ -52,7 +55,15 @@ namespace MicroRabbit.Transfer.Api
 
             app.MapControllers();
 
+            ConfigureEventBus(app);
+
             app.Run();
+        }
+
+        private static void ConfigureEventBus(WebApplication app)
+        {
+            var eventBus = app.Services.GetRequiredService<IEventBus>();
+            eventBus.subscribe<TransferCreatedEvent, TransferEventHandler>();
         }
     }
 }
