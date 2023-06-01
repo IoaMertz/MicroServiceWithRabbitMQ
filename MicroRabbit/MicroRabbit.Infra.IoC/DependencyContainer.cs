@@ -31,7 +31,14 @@ namespace MicroRabbit.Infra.IoC
         public static void RegisterServices(this IServiceCollection services)
         {
             //Domain Bus
-            services.AddTransient<IEventBus, RabbitMQBus>();
+            services.AddSingleton<IEventBus, RabbitMQBus>(sp =>
+            {
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                return new RabbitMQBus(sp.GetService<IMediator>(), scopeFactory);
+            });
+
+            //subscriptions
+            services.AddTransient<TransferEventHandler>(); //is this needed???
 
             //Domain Events
             services.AddTransient<IEventHandler<TransferCreatedEvent>, TransferEventHandler>();
@@ -45,9 +52,9 @@ namespace MicroRabbit.Infra.IoC
 
             //Data
             services.AddTransient<IAccountRepository, AccountRepository>();
-            services.AddTransient<BankingDbContext>();
+            services.AddTransient<BankingDbContext>(); // maybe this is not needed
             services.AddTransient<ITransferRepository, TransferRepository>();
-            services.AddTransient<TransferDbContext>();
+            services.AddTransient<TransferDbContext>(); // maybe this is not needed
           
 
 

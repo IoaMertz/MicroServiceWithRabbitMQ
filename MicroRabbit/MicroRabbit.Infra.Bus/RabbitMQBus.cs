@@ -24,16 +24,18 @@ namespace MicroRabbit.Infra.Bus
         // The Dictionary and List are like a subscription that knows which subscription is tied to which handlers and event
         private readonly Dictionary<string,List<Type>> _handlers;
 
-        
+        //refactor
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
 
 
         // list of event types
         private readonly List<Type> _eventTypes;
 
-        public RabbitMQBus(IMediator mediator)
+        public RabbitMQBus(IMediator mediator, IServiceScopeFactory serviceScopeFactory)
         {
             _mediator = mediator;
+            _serviceScopeFactory = serviceScopeFactory;
             _handlers = new Dictionary<string, List<Type>>();
             _eventTypes = new List<Type>();
         }
@@ -166,38 +168,44 @@ namespace MicroRabbit.Infra.Bus
         {
             if (_handlers.ContainsKey(eventName))
             {
-                var subscriptions = _handlers[eventName];
-                foreach (var subscription in subscriptions)
+                using (var scope = _serviceScopeFactory.CreateScope())
                 {
-                    // Generics just like using new to create an instance. Requires a parametereles ctor 
-                    var handler = Activator.CreateInstance(subscription);
+                    var subscriptions = _handlers[eventName];
 
-                    //why we need this?. If Handler is null continue looking
-                    if (handler == null) continue;
+                    foreach (var subscription in subscriptions)
+                    {
+                        // Generics just like using new to create an instance. Requires a parametereles ctor 
+                        var handler = scope.ServiceProvider.GetRequiredService(subscription);
 
-                    // Now that we have the Handler. We look in the variable List that hold the event types 
-                    //for the event Type based on the eventName
-                    //(remember : SingleOrDefault throws an error in more that one is in the collection)
-                    var eventType = _eventTypes.SingleOrDefault(t => t.Name == eventName);
+                        //why we need this?. If Handler is null continue looking
+                        if (handler == null) continue;
 
-                    //this make an object type (eventType), with the message. Maybe 
-                    var @event = JsonConvert.DeserializeObject(message, eventType);
+                        // Now that we have the Handler. We look in the variable List that hold the event types 
+                        //for the event Type based on the eventName
+                        //(remember : SingleOrDefault throws an error in more that one is in the collection)
+                        var eventType = _eventTypes.SingleOrDefault(t => t.Name == eventName);
 
-                    // All our event handlers implement
-                    //typeof(IEventHandler<>) return a Type. <> indicates and open generic type.
-                    //The MakeGenericType method takes one or more Type objects as parameters
-                    //and returns a new Type object that represents a closed constructed type based on the original open generic type.
-                    //In this case, the eventType parameter is used to create a closed constructed type of IEventHandler<T>,
-                    //where T is the type represented by eventType.
-                    var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
+                        //this make an object type (eventType), with the message. Maybe 
+                        var @event = JsonConvert.DeserializeObject(message, eventType);
 
-                    //this uses generic to take the method named Handle
-                    //(Remember we have make the signature for this method in IEventHandler Interface we made so it has to be there)
-                    //from the specific handler and use it passing the event object
-                    //We ll create different event handlers for different use cases in our microservices.
-                    //They will be inviked from our service buss over here
-                    await (Task)concreteType.GetMethod("Handle").Invoke(handler, new object[] { @event });
+                        // All our event handlers implement
+                        //typeof(IEventHandler<>) return a Type. <> indicates and open generic type.
+                        //The MakeGenericType method takes one or more Type objects as parameters
+                        //and returns a new Type object that represents a closed constructed type based on the original open generic type.
+                        //In this case, the eventType parameter is used to create a closed constructed type of IEventHandler<T>,
+                        //where T is the type represented by eventType.
+                        var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
+
+                        //this uses generic to take the method named Handle
+                        //(Remember we have make the signature for this method in IEventHandler Interface we made so it has to be there)
+                        //from the specific handler and use it passing the event object
+                        //We ll create different event handlers for different use cases in our microservices.
+                        //They will be inviked from our service buss over here
+                        await (Task)concreteType.GetMethod("Handle").Invoke(handler, new object[] { @event });
+                    }
+
                 }
+               
             }
         }
     }
